@@ -1,0 +1,9 @@
+{
+	"name":"GameCollectionServer",
+	"version":"1.0.0",
+	"dependencies":{
+		"connect":"*",
+		"mongoose":"*",
+		"express":"~3.1.0"
+	}
+}
