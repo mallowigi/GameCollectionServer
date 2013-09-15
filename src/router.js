@@ -16,7 +16,7 @@ exports.initRoutes = function (server) {
 			});
 		}
 		else {
-			console.log("Session Auth failed no username")
+			console.log("No username sent");
 			res.send({
 				auth: false,
 				_csrf: req.session._csrf
@@ -55,30 +55,54 @@ exports.initRoutes = function (server) {
 	 * When the user send a login request
 	 */
 	server.post('/api/login', function (req, resp) {
-		var userName = req.body.userName,
+		var userName = req.body.username,
 			password = req.body.password;
 
-		// Try to find an user with given username
-		UserModel.findOne({userName: userName}, function (err, user) {
-			if (err) console.err(err);
+		var errors = {}, fail = false;
+		if (userName === '') {
+			fail = true;
+			errors['username'] = "No username supplied";
+		}
+		if (password === '') {
+			fail = true;
+			errors['password'] = "No password supplied";
+		}
 
-			if (!user) {
-				return resp.send("No user found");
+		if (fail) {
+			return resp.send(errors);
+		}
+
+		UserModel.findOne({userName: userName}, function (err, user) {
+			console.log("Entering findone");
+
+			if (err) {
+				errors['database'] = err;
+				resp.writeHead(500);
+				return resp.send(errors);
 			}
 
-			return user.comparePassword(password, function (err, isMatch) {
-				if (isMatch) {
-					// session, redirect, etc
-					resp.send("Passwords are matching");
-				}
-				else {
-					// redirect bad password
-					resp.send("Passwords are not matching");
-				}
-				return resp.send(isMatch);
-			});
+			if (!user) {
+				console.error("No user found");
+				errors['username'] = "No user found";
+				return resp.send(errors);
+			}
+			else {
+				console.log("Comparing");
+				user.comparePassword(password, function (err, isMatch) {
+					if (isMatch) {
+						console.log("MAtch found");
+						return resp.send(errors);
+					}
+					else {
+						errors['password'] = "Wrong password";
+						console.log("Not found match");
+						return resp.send(errors);
+					}
+				});
+			}
 		});
 	});
+
 	server.get('/api/user/:username', function (req, resp) {
 		console.log(req.params.username);
 		resp.send({
