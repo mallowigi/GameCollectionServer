@@ -7,22 +7,41 @@ var fs = require('fs')
 	, http = require('http')
 	, mongo = require('mongoose')
 	, express = require('express')
-	, requirejs = require('requirejs');
 
 var localhost = "127.0.0.1"
-var httpPort = process.env.port || 8080;
+var httpPort = process.env.port || 27001;
 
 var config = require('./src/config');
 
 // Create a new server
 var server = express();
 
+/**
+ * Middleware to decline OPTIONS requests issued by CORS requests
+ * @param req
+ * @param res
+ * @param next
+ */
+var declineOptions = function (req, res, next) {
+	if (req.method === 'OPTIONS') {
+		res.writeHead(204);
+		res.end();
+	}
+	else {
+		next();
+	}
+}
+
+/**
+ * Middleware to allow CORS requests for specific domains
+ * @param req the request
+ * @param res the response
+ * @param next the next middleware
+ */
 var allowCrossDomain = function (req, res, next) {
-	// Added other domains you want the server to give access to
-	// WARNING - Be careful with what origins you give access to
-	var allowedHost = ['http://localhost:63342'];
+	var allowedHost = ['http://klarthdev.org:3000', 'http://localhost:63342','http://localhost:8080'];
 	if (allowedHost.indexOf(req.headers.origin) !== -1) {
-		console.log("Allowed access to "+ req.headers.origin);
+		//		console.log("Allowed access to "+ req.headers.origin);
 		res.header('Access-Control-Allow-Credentials', true);
 		res.header('Access-Control-Allow-Origin', req.headers.origin)
 		res.header('Access-Control-Allow-Methods', 'GET,PUT,POST,DELETE,OPTIONS');
@@ -35,34 +54,45 @@ var allowCrossDomain = function (req, res, next) {
 	}
 }
 // Configure server
-// Favicon
-server.use(express.favicon());
-// Parse json/multipart body
-server.use(express.bodyParser());
-// Allow method override (PUT/DELETE)
-server.use(express.methodOverride());
-// Allow cookies
-server.use(express.cookieParser());
-// Allow session state with secret
-server.use(express.session({ secret: 'mallowigiGameColl'}));
-// Protect against Cross Site Request Forgery
-//server.use(express.csrf());
-// Only allow specific domains (CORS)
-server.use(allowCrossDomain);
-// Use router for html pages
-server.use(server.router);
-// Serve pages under the 'web' directory
-server.use(express.static(path.join(__dirname, 'web')));
-// Pass errors and dump them
-server.use(express.errorHandler({ dumpExceptions: true, showStack: true}));
+server.configure(function () {
+	// Favicon
+	server.use(express.favicon());
+	// Parse json/multipart body
+	server.use(express.bodyParser());
+	// Allow method override (PUT/DELETE)
+	server.use(express.methodOverride());
+	// Allow cookies
+	server.use(express.cookieParser());
+	// Allow session state with secret
+	server.use(express.session({ secret: '14f085be4a63d0f266b51b8fa92ee3b612dc16de'}));
+	// Only allow specific domains (CORS)
+	server.use(allowCrossDomain);
+	// Protect against Cross Site Request Forgery
+	//server.use(express.csrf());
+	server.use(declineOptions);
+	// Use router for html pages
+	server.use(server.router);
+	// Serve pages under the 'web' directory
+	server.use(express.static(path.join(__dirname, 'web')));
+});
 
-// Connect to db
-mongo.connect(config.mongoUrl);
+server.configure('development', function(){
+	server.use(express.errorHandler({ dumpExceptions: true, showStack: true }));
+});
+server.configure('production', function(){
+	server.use(express.errorHandler());
+});
 
-// Create the routes
-var router = require('./src/router');
-router.initRoutes(server);
+function start() {
+	// Connect to db
+	mongo.connect(config.mongoUrl);
 
-server.listen(httpPort);
-console.log("Server running at " + localhost + ":" + httpPort);
+	// Create the routes
+	var router = require('./src/router');
+	router.initRoutes(server);
+	server.listen(httpPort);
+	console.log("Server running at " + localhost + ":" + httpPort);
+}
 
+exports.start = start;
+exports.server = server;
