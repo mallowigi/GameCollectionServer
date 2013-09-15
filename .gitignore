@@ -2,9 +2,12 @@
 
 /*.iml
 
+*.log
+
 .bin
 restify
 
+/node_modules
 /node_modules/bcryptjs/.npmignore
 /node_modules/bcryptjs/.travis.yml
 /node_modules/bcryptjs/LICENSE
